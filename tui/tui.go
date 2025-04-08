@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 
@@ -23,6 +24,8 @@ func StartTea(url string, logging bool) {
 				}
 			}()
 		}
+	} else {
+		log.SetOutput(io.Discard)
 	}
 
 	client, err := api.NewApiClient(url)
