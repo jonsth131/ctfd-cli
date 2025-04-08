@@ -13,14 +13,35 @@ import (
 	"github.com/jonsth131/ctfd-cli/tui/constants"
 )
 
+type scoreboardKeymap struct {
+	Reload key.Binding
+	Quit   key.Binding
+}
+
+func (k scoreboardKeymap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Reload, k.Quit}
+}
+
+func (k scoreboardKeymap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		k.ShortHelp(),
+	}
+}
+
+var ScoreboardKeymap = scoreboardKeymap{
+	Reload: constants.Keymap.Reload,
+	Quit:   constants.Keymap.Quit,
+}
+
 type updateScoreboardCmd struct {
 	scoreboard []api.ScoreboardEntry
 }
 
 type scoreboardModel struct {
-	scoreboard table.Model
-	help       help.Model
-	err        string
+	scoreboard  table.Model
+	help        help.Model
+	screensHelp help.Model
+	err         string
 }
 
 func fetchScoreboard() tea.Cmd {
@@ -49,7 +70,7 @@ func setScoreboardTableSize(t *table.Model) {
 		t.SetColumns(columns)
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 3)
+		t.SetHeight(constants.WindowSize.Height - top - bottom - 4)
 		t.SetWidth(constants.WindowSize.Width - left - right + 1)
 	}
 }
@@ -83,9 +104,10 @@ func InitScoreboard() (scoreboardModel, tea.Cmd) {
 	setScoreboardTableSize(&t)
 
 	return scoreboardModel{
-		scoreboard: t,
-		help:       help.New(),
-		err:        "",
+		scoreboard:  t,
+		help:        help.New(),
+		screensHelp: help.New(),
+		err:         "",
 	}, fetchScoreboard()
 }
 
@@ -109,7 +131,7 @@ func (m scoreboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, fetchScoreboard()
 		case key.Matches(msg, constants.Keymap.Quit):
 			return m, tea.Quit
-		case key.Matches(msg, constants.Keymap.Challenges):
+		case key.Matches(msg, constants.ScreensKeymap.Challenges):
 			view, initCmd := InitChallenges()
 			m, updateCmd := view.Update(constants.WindowSize)
 			return m, tea.Batch(updateCmd, initCmd)
@@ -127,6 +149,7 @@ func (m scoreboardModel) View() string {
 		return "Loading scoreboard..."
 	}
 
-	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.scoreboard.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(constants.Keymap)))
-	return constants.BaseStyle.Render(m.scoreboard.View()) + "\n" + helpText
+	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
+	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.scoreboard.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ScoreboardKeymap)))
+	return constants.BaseStyle.Render(m.scoreboard.View()) + "\n" + screensHelpText + "\n" + helpText
 }

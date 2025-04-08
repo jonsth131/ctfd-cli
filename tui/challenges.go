@@ -14,14 +14,37 @@ import (
 	"github.com/jonsth131/ctfd-cli/tui/constants"
 )
 
+type challengesKeymap struct {
+	Enter  key.Binding
+	Reload key.Binding
+	Quit   key.Binding
+}
+
+func (k challengesKeymap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Enter, k.Reload, k.Quit}
+}
+
+func (k challengesKeymap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		k.ShortHelp(),
+	}
+}
+
+var ChallengesKeymap = challengesKeymap{
+	Enter:  constants.Keymap.Enter,
+	Reload: constants.Keymap.Reload,
+	Quit:   constants.Keymap.Quit,
+}
+
 type updateChallengesCmd struct {
 	challenges []api.Challenge
 }
 
 type challengesModel struct {
-	table table.Model
-	help  help.Model
-	msg   string
+	table       table.Model
+	help        help.Model
+	screensHelp help.Model
+	msg         string
 }
 
 func fetchChallenges() tea.Cmd {
@@ -52,7 +75,7 @@ func setTableSize(t *table.Model) {
 		t.SetColumns(columns)
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 3)
+		t.SetHeight(constants.WindowSize.Height - top - bottom - 4)
 		t.SetWidth(constants.WindowSize.Width - left - right + 1)
 	}
 }
@@ -61,7 +84,11 @@ func createRows(challenges []api.Challenge) []table.Row {
 	rows := make([]table.Row, len(challenges))
 
 	for i, challenge := range challenges {
-		rows[i] = table.Row{fmt.Sprintf("%d", challenge.Id), challenge.Name, challenge.Category, fmt.Sprintf("%d", challenge.Value), fmt.Sprintf("%t", challenge.SolvedByMe)}
+		solved := ""
+		if challenge.SolvedByMe {
+			solved = "✓"
+		}
+		rows[i] = table.Row{fmt.Sprintf("%d", challenge.Id), challenge.Name, challenge.Category, fmt.Sprintf("%d", challenge.Value), solved}
 	}
 
 	return rows
@@ -86,8 +113,9 @@ func InitChallenges() (tea.Model, tea.Cmd) {
 	setTableSize(&t)
 
 	return challengesModel{
-		help:  help.New(),
-		table: t,
+		help:        help.New(),
+		screensHelp: help.New(),
+		table:       t,
 	}, tea.Batch(fetchChallenges())
 }
 
@@ -112,7 +140,7 @@ func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			id, _ := strconv.Atoi(curr[0])
 			challenge, initCmd := InitChallenge(id)
 			return challenge, initCmd
-		case key.Matches(msg, constants.Keymap.Scoreboard):
+		case key.Matches(msg, constants.ScreensKeymap.Scoreboard):
 			view, initCmd := InitScoreboard()
 			m, updateCmd := view.Update(constants.WindowSize)
 			return m, tea.Batch(updateCmd, initCmd)
@@ -129,6 +157,8 @@ func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m challengesModel) View() string {
-	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.table.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(constants.Keymap)))
-	return constants.BaseStyle.Render(m.table.View()) + "\n" + helpText
+	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.table.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ChallengesKeymap)))
+	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
+
+	return constants.BaseStyle.Render(m.table.View()) + "\n" + screensHelpText + "\n" + helpText
 }
