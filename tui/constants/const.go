@@ -1,0 +1,82 @@
+package constants
+
+import (
+	"github.com/charmbracelet/bubbles/key"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/jonsth131/ctfd-cli/api"
+)
+
+/* CONSTANTS */
+
+var (
+	P          *tea.Program
+	C          *api.ApiClient
+	WindowSize tea.WindowSizeMsg
+)
+
+/* STYLING */
+
+// DocStyle styling for viewports
+var DocStyle = lipgloss.NewStyle().Margin(0, 2)
+
+// HelpStyle styling for help context menu
+var HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
+
+// ErrStyle provides styling for error messages
+var ErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#bd534b")).Render
+
+// AlertStyle provides styling for alert messages
+var AlertStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("62")).Render
+
+var BaseStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("240"))
+
+type keymap struct {
+	Enter      key.Binding
+	Back       key.Binding
+	Reload     key.Binding
+	Challenges key.Binding
+	Scoreboard key.Binding
+	Quit       key.Binding
+}
+
+func (k keymap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Enter, k.Back, k.Reload, k.Challenges, k.Scoreboard, k.Quit}
+}
+
+func (k keymap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Challenges, k.Scoreboard},
+		{k.Enter, k.Back, k.Reload, k.Quit},
+	}
+}
+
+// Keymap reusable key mappings shared across models
+var Keymap = keymap{
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "select"),
+	),
+	Back: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("esc", "back"),
+	),
+	Reload: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "reload"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c", "q"),
+		key.WithHelp("ctrl+c/q", "quit"),
+	),
+	Challenges: key.NewBinding(
+		key.WithKeys("1"),
+		key.WithHelp("1", "challenges"),
+	),
+	Scoreboard: key.NewBinding(
+		key.WithKeys("2"),
+		key.WithHelp("2", "scoreboard"),
+	),
+}
