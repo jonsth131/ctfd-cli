@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/url"
 	"regexp"
+	"strings"
 )
 
 type ApiResponse[T any] struct {
@@ -142,7 +143,18 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 
 	defer resp.Body.Close()
 
+	bodyBytes, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return false, fmt.Errorf("Failed to read response body: %v", err)
+	}
+	bodyString = string(bodyBytes)
+
+	if strings.Contains(bodyString, "Your username or password is incorrect") {
+		return false, fmt.Errorf("Invalid credentials")
+	}
+
 	sessionCookie := resp.Request.CookiesNamed("session")[0]
+
 	c.SetCookie(sessionCookie)
 
 	return true, nil
