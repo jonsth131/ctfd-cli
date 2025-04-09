@@ -3,6 +3,8 @@ package tui
 import (
 	"fmt"
 	"log"
+	"path"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -114,7 +116,38 @@ func InitChallenge(id int) (challengeModel, tea.Cmd) {
 }
 
 func formatChallenge(challenge api.Challenge) string {
-	return fmt.Sprintf("# %s\n\n**Category**: %s\n\n**Value**: %d\n\n**Solves**: %d\n\n**Solved by me**: %t\n\n## Description\n\n%s", challenge.Name, challenge.Category, challenge.Value, challenge.Solves, challenge.SolvedByMe, challenge.Description)
+	files := ""
+	if len(challenge.Files) != 0 {
+		var formatted []string
+
+		for _, fullURL := range challenge.Files {
+			cleanPath := strings.Split(fullURL, "?")[0]
+			filename := path.Base(cleanPath)
+
+			formatted = append(formatted, fmt.Sprintf("- %s", filename))
+		}
+
+		files = fmt.Sprintf("\n\n## Files:\n\n%s", strings.Join(formatted, "\n"))
+	}
+
+	hints := ""
+	if len(challenge.Hints) != 0 {
+		hints = fmt.Sprintf("\n\n**Hints**: %d\n\n", len(challenge.Hints))
+	}
+
+	return fmt.Sprintf(`# %s - %d pts
+
+**Category**: %s
+
+**Solves**: %d
+
+**Solved by me**: %t
+
+## Description
+
+%s
+
+%s%s`, challenge.Name, challenge.Value, challenge.Category, challenge.Solves, challenge.SolvedByMe, challenge.Description, files, hints)
 }
 
 func (m *challengeModel) setViewportContent() {

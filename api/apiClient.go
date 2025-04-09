@@ -19,14 +19,19 @@ type ApiResponse[T any] struct {
 }
 
 type Challenge struct {
-	Id          uint32 `json:"id"`
-	Type        string `json:"type"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Value       uint32 `json:"value"`
-	Solves      uint32 `json:"solves"`
-	SolvedByMe  bool   `json:"solved_by_me"`
-	Category    string `json:"category"`
+	Id          uint32   `json:"id"`
+	Type        string   `json:"type"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Value       uint32   `json:"value"`
+	Solves      uint32   `json:"solves"`
+	SolvedByMe  bool     `json:"solved_by_me"`
+	Category    string   `json:"category"`
+	Files       []string `json:"files"`
+	Hints       []struct {
+		Id   int `json:"id"`
+		Cost int `json:"cost"`
+	} `json:"hints"`
 }
 
 type ScoreboardEntry struct {
