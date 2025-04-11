@@ -228,11 +228,13 @@ func (m challengeModel) View() string {
 		return "Loading challenge..."
 	}
 
+	alert := lipgloss.JoinHorizontal(lipgloss.Left, constants.ErrStyle(m.err), constants.AlertStyle(m.message))
+
 	if m.input.Focused() {
-		formatted := lipgloss.JoinVertical(lipgloss.Top, "\n", m.viewport.View(), m.help.View(ChallengeKeymap), constants.ErrStyle(m.err), constants.AlertStyle(m.message), m.input.View())
+		formatted := lipgloss.JoinVertical(lipgloss.Top, "\n", m.viewport.View(), m.help.View(ChallengeKeymap), alert, m.input.View())
 		return constants.DocStyle.Render(formatted)
 	} else {
-		formatted := lipgloss.JoinVertical(lipgloss.Top, "\n", m.viewport.View(), m.help.View(ChallengeKeymap), constants.ErrStyle(m.err), constants.AlertStyle(m.message))
+		formatted := lipgloss.JoinVertical(lipgloss.Top, "\n", m.viewport.View(), m.help.View(ChallengeKeymap), alert)
 		return constants.DocStyle.Render(formatted)
 	}
 }
