@@ -147,7 +147,9 @@ func formatChallenge(challenge api.Challenge) string {
 
 %s
 
-%s%s`, challenge.Name, challenge.Value, challenge.Category, challenge.Solves, challenge.SolvedByMe, challenge.Description, files, hints)
+%s
+
+%s%s`, challenge.Name, challenge.Value, challenge.Category, challenge.Solves, challenge.SolvedByMe, challenge.Description, challenge.ConnectionInfo, files, hints)
 }
 
 func (m *challengeModel) setViewportContent() {
