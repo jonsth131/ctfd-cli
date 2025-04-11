@@ -70,7 +70,7 @@ func setScoreboardTableSize(t *table.Model) {
 		t.SetColumns(columns)
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 4)
+		t.SetHeight(constants.WindowSize.Height - top - bottom - 5)
 		t.SetWidth(constants.WindowSize.Width - left - right + 1)
 	}
 }
@@ -136,6 +136,9 @@ func (m scoreboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m, updateCmd := view.Update(constants.WindowSize)
 			return m, tea.Batch(updateCmd, initCmd)
 		}
+	case errMsg:
+		log.Default().Print(msg)
+		m.err = msg.Error()
 	}
 
 	var cmd tea.Cmd
@@ -145,11 +148,15 @@ func (m scoreboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m scoreboardModel) View() string {
+	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
+	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.scoreboard.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ScoreboardKeymap)))
+
+	if m.err != "" {
+		return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText, constants.ErrStyle(m.err))
+	}
 	if len(m.scoreboard.Rows()) == 0 {
 		return "Loading scoreboard..."
 	}
 
-	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
-	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.scoreboard.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ScoreboardKeymap)))
-	return constants.BaseStyle.Render(m.scoreboard.View()) + "\n" + screensHelpText + "\n" + helpText
+	return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText)
 }

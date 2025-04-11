@@ -45,6 +45,7 @@ type challengesModel struct {
 	help        help.Model
 	screensHelp help.Model
 	msg         string
+	err         string
 }
 
 func fetchChallenges() tea.Cmd {
@@ -75,7 +76,8 @@ func setTableSize(t *table.Model) {
 		t.SetColumns(columns)
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 4)
+
+		t.SetHeight(constants.WindowSize.Height - top - bottom - 5)
 		t.SetWidth(constants.WindowSize.Width - left - right + 1)
 	}
 }
@@ -132,6 +134,7 @@ func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, constants.Keymap.Reload):
+			m.err = ""
 			return m, fetchChallenges()
 		case key.Matches(msg, constants.Keymap.Quit):
 			return m, tea.Quit
@@ -149,6 +152,9 @@ func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		constants.WindowSize = msg
 		setTableSize(&m.table)
 		return m, nil
+	case errMsg:
+		log.Default().Print(msg)
+		m.err = msg.Error()
 	}
 	cmds := make([]tea.Cmd, 2)
 	m.table, cmds[0] = m.table.Update(msg)
@@ -160,5 +166,6 @@ func (m challengesModel) View() string {
 	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.table.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ChallengesKeymap)))
 	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
 
-	return constants.BaseStyle.Render(m.table.View()) + "\n" + screensHelpText + "\n" + helpText
+	return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.table.View()),
+		screensHelpText, helpText, constants.ErrStyle(m.err))
 }

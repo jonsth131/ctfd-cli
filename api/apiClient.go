@@ -142,10 +142,6 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 		return false, fmt.Errorf("Failed to login: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("Failed to login: %v", resp.Status)
-	}
-
 	defer resp.Body.Close()
 
 	bodyBytes, err = io.ReadAll(resp.Body)
