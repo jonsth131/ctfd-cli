@@ -154,9 +154,5 @@ func (m scoreboardModel) View() string {
 	if m.err != "" {
 		return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText, constants.ErrStyle(m.err))
 	}
-	if len(m.scoreboard.Rows()) == 0 {
-		return "Loading scoreboard..."
-	}
-
 	return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText)
 }
