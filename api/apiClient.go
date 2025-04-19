@@ -29,10 +29,23 @@ type Challenge struct {
 	Category       string   `json:"category"`
 	Files          []string `json:"files"`
 	ConnectionInfo string   `json:"connection_info"`
+	Tags           []string `json:"tags"`
+	Attempts       int      `json:"attempts"`
+	MaxAttempts    int      `json:"max_attempts"`
 	Hints          []struct {
 		Id   int `json:"id"`
 		Cost int `json:"cost"`
 	} `json:"hints"`
+}
+
+type ListChallenge struct {
+	Id         uint32 `json:"id"`
+	Type       string `json:"type"`
+	Name       string `json:"name"`
+	Value      uint32 `json:"value"`
+	Solves     uint32 `json:"solves"`
+	SolvedByMe bool   `json:"solved_by_me"`
+	Category   string `json:"category"`
 }
 
 type ScoreboardEntry struct {
@@ -162,7 +175,7 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 	return true, nil
 }
 
-func (c *ApiClient) GetChallenges() ([]Challenge, error) {
+func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
 	u := fmt.Sprintf("%s/api/v1/challenges", c.baseUrl)
 
 	resp, err := c.client.Get(u)
@@ -172,7 +185,7 @@ func (c *ApiClient) GetChallenges() ([]Challenge, error) {
 	}
 
 	defer resp.Body.Close()
-	var challenges ApiResponse[[]Challenge]
+	var challenges ApiResponse[[]ListChallenge]
 	if err := json.NewDecoder(resp.Body).Decode(&challenges); err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
@@ -135,13 +136,27 @@ func formatChallenge(challenge api.Challenge) string {
 		hints = fmt.Sprintf("\n\n**Hints**: %d\n\n", len(challenge.Hints))
 	}
 
+	tags := ""
+	if len(challenge.Tags) > 0 {
+		tags = fmt.Sprintf("\n**Tags**: %s\n\n", strings.Join(challenge.Tags, ", "))
+	}
+
+	attempts := strconv.Itoa(challenge.Attempts)
+
+	if challenge.MaxAttempts > 0 {
+		attempts += fmt.Sprintf(" / %d", challenge.MaxAttempts)
+	}
+
 	return fmt.Sprintf(`# %s - %d pts
 
 **Category**: %s
+%s
 
 **Solves**: %d
 
 **Solved by me**: %t
+
+**Attempts**: %s
 
 ## Description
 
@@ -149,7 +164,7 @@ func formatChallenge(challenge api.Challenge) string {
 
 %s
 
-%s%s`, challenge.Name, challenge.Value, challenge.Category, challenge.Solves, challenge.SolvedByMe, challenge.Description, challenge.ConnectionInfo, files, hints)
+%s%s`, challenge.Name, challenge.Value, challenge.Category, tags, challenge.Solves, challenge.SolvedByMe, attempts, challenge.Description, challenge.ConnectionInfo, files, hints)
 }
 
 func (m *challengeModel) setViewportContent() {

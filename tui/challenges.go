@@ -37,7 +37,7 @@ var ChallengesKeymap = challengesKeymap{
 }
 
 type updateChallengesCmd struct {
-	challenges []api.Challenge
+	challenges []api.ListChallenge
 }
 
 type challengesModel struct {
@@ -82,7 +82,7 @@ func setTableSize(t *table.Model) {
 	}
 }
 
-func createRows(challenges []api.Challenge) []table.Row {
+func createRows(challenges []api.ListChallenge) []table.Row {
 	rows := make([]table.Row, len(challenges))
 
 	for i, challenge := range challenges {
