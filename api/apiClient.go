@@ -148,6 +148,15 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 	}
 	bodyString := string(bodyBytes)
 
+	title, err := extractTitle(bodyString)
+	if err != nil {
+		return false, fmt.Errorf("could not extract title from login page: %w", err)
+	}
+
+	if strings.Contains(title, "Just a moment...") {
+		return false, fmt.Errorf("CAPTCHA required. Try to login in the browser")
+	}
+
 	nonce, err := extractNonce(bodyString)
 	if err != nil {
 		return false, fmt.Errorf("could not extract nonce from login page: %w", err)

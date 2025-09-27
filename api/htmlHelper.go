@@ -40,7 +40,36 @@ func extractNonce(htmlBody string) (string, error) {
 
 	f(doc)
 	if nonce == "" {
-		return "", fmt.Errorf("nonce not found in login page")
+		return "", fmt.Errorf("nonce not found")
 	}
 	return nonce, nil
+}
+
+func extractTitle(htmlBody string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlBody))
+	if err != nil {
+		return "", err
+	}
+
+	var title string
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "title" {
+			for c := n.FirstChild; c != nil; c = c.NextSibling {
+				if c.Type == html.TextNode {
+					title = strings.TrimSpace(c.Data)
+					return
+				}
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(doc)
+	if title == "" {
+		return "", fmt.Errorf("title not found")
+	}
+	return title, nil
 }
