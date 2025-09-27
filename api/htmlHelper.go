@@ -1,0 +1,46 @@
+package api
+
+import (
+	"fmt"
+	"strings"
+
+	"golang.org/x/net/html"
+)
+
+func extractNonce(htmlBody string) (string, error) {
+	doc, err := html.Parse(strings.NewReader(htmlBody))
+	if err != nil {
+		return "", err
+	}
+
+	var nonce string
+	var f func(*html.Node)
+	f = func(n *html.Node) {
+		if n.Type == html.ElementNode && n.Data == "input" {
+			var id, name, value string
+			for _, attr := range n.Attr {
+				switch attr.Key {
+				case "id":
+					id = attr.Val
+				case "name":
+					name = attr.Val
+				case "value":
+					value = attr.Val
+				}
+			}
+			if id == "nonce" && name == "nonce" {
+				nonce = value
+				return
+			}
+		}
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			f(c)
+		}
+	}
+
+	f(doc)
+	if nonce == "" {
+		return "", fmt.Errorf("nonce not found in login page")
+	}
+	return nonce, nil
+}

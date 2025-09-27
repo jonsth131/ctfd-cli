@@ -2,7 +2,9 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -129,6 +131,12 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 	resp, err := c.client.Get(fmt.Sprintf("%s/login", c.baseUrl))
 
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return false, fmt.Errorf("login canceled")
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return false, fmt.Errorf("login timed out")
+		}
 		return false, fmt.Errorf("Failed to get login page: %v", err)
 	}
 
@@ -140,9 +148,10 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 	}
 	bodyString := string(bodyBytes)
 
-	regex := regexp.MustCompile(`<input id="nonce" name="nonce" type="hidden" value="([a-f0-9]*)">`)
-
-	nonce := regex.FindStringSubmatch(bodyString)[1]
+	nonce, err := extractNonce(bodyString)
+	if err != nil {
+		return false, fmt.Errorf("could not extract nonce from login page: %w", err)
+	}
 
 	body := url.Values{
 		"name":     {name},
@@ -153,6 +162,12 @@ func (c *ApiClient) Login(name string, password string) (bool, error) {
 	resp, err = c.client.PostForm(fmt.Sprintf("%s/login", c.baseUrl), body)
 
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return false, fmt.Errorf("login canceled")
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			return false, fmt.Errorf("login timed out")
+		}
 		return false, fmt.Errorf("Failed to login: %v", err)
 	}
 
