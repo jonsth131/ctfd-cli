@@ -31,7 +31,7 @@ func StartTea(url string, logging bool) {
 	client, err := api.NewApiClient(url)
 	if err != nil {
 		fmt.Println("Failed to create Api Client")
-		os.Exit(1)
+		log.Fatal(err)
 	}
 
 	constants.C = client
@@ -39,7 +39,6 @@ func StartTea(url string, logging bool) {
 	m, _ := InitLogin()
 	constants.P = tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := constants.P.Run(); err != nil {
-		fmt.Printf("could not start program: %s\n", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }

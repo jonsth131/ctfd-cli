@@ -37,7 +37,7 @@ var ChallengesKeymap = challengesKeymap{
 	Quit:   constants.Keymap.Quit,
 }
 
-type updateChallengesCmd struct {
+type challengesFetchedMsg struct {
 	challenges []api.ListChallenge
 }
 
@@ -45,11 +45,12 @@ type challengesModel struct {
 	table       table.Model
 	help        help.Model
 	screensHelp help.Model
-	msg         string
-	err         string
+	err         error
+	width       int
+	height      int
 }
 
-func fetchChallenges() tea.Cmd {
+func fetchChallengesCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
 		defer cancel()
@@ -59,14 +60,14 @@ func fetchChallenges() tea.Cmd {
 			return createErrMsg(fmt.Errorf("Failed to fetch challenges: %v", err))
 		}
 		log.Default().Print("Fetched challenges")
-		return updateChallengesCmd{challenges}
+		return challengesFetchedMsg{challenges}
 	}
 }
 
-func setTableSize(t *table.Model) {
-	if constants.WindowSize.Height != 0 {
-		nameLength := ((constants.WindowSize.Width - 17) / 4) * 2
-		categoryLength := constants.WindowSize.Width - 30 - nameLength
+func setTableSize(t *table.Model, width, height int) {
+	if height != 0 {
+		nameLength := ((width - 17) / 4) * 2
+		categoryLength := width - 30 - nameLength
 
 		columns := []table.Column{
 			{Title: "ID", Width: 5},
@@ -80,8 +81,8 @@ func setTableSize(t *table.Model) {
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
 
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 5)
-		t.SetWidth(constants.WindowSize.Width - left - right + 1)
+		t.SetHeight(height - top - bottom - 5)
+		t.SetWidth(width - left - right + 1)
 	}
 }
 
@@ -99,29 +100,24 @@ func createRows(challenges []api.ListChallenge) []table.Row {
 	return rows
 }
 
-func InitChallenges() (tea.Model, tea.Cmd) {
+func InitChallenges(width, height int) (tea.Model, tea.Cmd) {
 	t := table.New(
 		table.WithFocused(true),
 	)
 
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
+	s := constants.TableStyle
+	s.Header = constants.TableHeaderStyle
+	s.Selected = constants.SelectedRowStyle
 	t.SetStyles(s)
-	setTableSize(&t)
+	setTableSize(&t, width, height)
 
 	return challengesModel{
 		help:        help.New(),
 		screensHelp: help.New(),
 		table:       t,
-	}, tea.Batch(fetchChallenges())
+		width:       width,
+		height:      height,
+	}, tea.Batch(fetchChallengesCmd())
 }
 
 func (m challengesModel) Init() tea.Cmd { return nil }
@@ -129,35 +125,36 @@ func (m challengesModel) Init() tea.Cmd { return nil }
 func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	log.Default().Printf("Challenges view received message: %v, %T\n", msg, msg)
 	switch msg := msg.(type) {
-	case updateChallengesCmd:
-		var cmd tea.Cmd
+	case challengesFetchedMsg:
 		m.table.SetRows(createRows(msg.challenges))
-		m.table, cmd = m.table.Update(msg)
-		return m, cmd
+		return m, nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, constants.Keymap.Reload):
-			m.err = ""
-			return m, fetchChallenges()
+			m.err = nil
+			return m, fetchChallengesCmd()
 		case key.Matches(msg, constants.Keymap.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, constants.Keymap.Enter):
 			curr := m.table.SelectedRow()
+			if curr == nil {
+				return m, nil
+			}
 			id, _ := strconv.Atoi(curr[0])
-			challenge, initCmd := InitChallenge(id)
+			challenge, initCmd := InitChallenge(id, m.width, m.height)
 			return challenge, initCmd
 		case key.Matches(msg, constants.ScreensKeymap.Scoreboard):
-			view, initCmd := InitScoreboard()
-			m, updateCmd := view.Update(constants.WindowSize)
-			return m, tea.Batch(updateCmd, initCmd)
+			sbm, initCmd := InitScoreboard(m.width, m.height)
+			return sbm, initCmd
 		}
 	case tea.WindowSizeMsg:
-		constants.WindowSize = msg
-		setTableSize(&m.table)
+		m.width = msg.Width
+		m.height = msg.Height
+		setTableSize(&m.table, m.width, m.height)
 		return m, nil
 	case errMsg:
 		log.Default().Print(msg)
-		m.err = msg.Error()
+		m.err = msg
 	}
 	cmds := make([]tea.Cmd, 2)
 	m.table, cmds[0] = m.table.Update(msg)
@@ -168,7 +165,8 @@ func (m challengesModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m challengesModel) View() string {
 	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.table.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ChallengesKeymap)))
 	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
+	errStr := renderError(m.err)
 
 	return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.table.View()),
-		screensHelpText, helpText, constants.ErrStyle(m.err))
+		screensHelpText, helpText, errStr)
 }

@@ -4,32 +4,37 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/jonsth131/ctfd-cli/api"
 )
 
 var (
-	P          *tea.Program
-	C          api.CTFdAPI
-	WindowSize tea.WindowSizeMsg
+	P *tea.Program
+	C api.CTFdAPI
+	// WindowSize tea.WindowSizeMsg
 )
 
 const (
 	Timeout = 5 * time.Second
 )
 
-var DocStyle = lipgloss.NewStyle().Margin(0, 2)
-
-var HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
-
-var ErrStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#bd534b")).Render
-
-var AlertStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("62")).Render
-
-var BaseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("240"))
+var (
+	DocStyle         = lipgloss.NewStyle().Margin(0, 2)
+	HelpStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render
+	ErrStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("#bd534b")).Render
+	AlertStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("62")).Render
+	BaseStyle        = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240"))
+	TableStyle       = table.DefaultStyles()
+	TableHeaderStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240")).BorderBottom(true).Bold(false)
+	SelectedRowStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
+	FocusedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	BlurredStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	CursorStyle      = FocusedStyle
+	NoStyle          = lipgloss.NewStyle()
+	SpinnerStyle     = FocusedStyle
+)
 
 type keymap struct {
 	Enter  key.Binding

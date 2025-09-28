@@ -46,11 +46,11 @@ var ChallengeKeymap = challengeKeymap{
 	Quit: constants.Keymap.Quit,
 }
 
-type updateChallengeCmd struct {
+type challengeUpdatedMsg struct {
 	challenge *api.Challenge
 }
 
-type setMessageCmd struct {
+type messageSetMsg struct {
 	message string
 }
 
@@ -67,11 +67,13 @@ type challengeModel struct {
 	challenge *api.Challenge
 	help      help.Model
 	input     textinput.Model
-	err       string
+	err       error
 	message   string
+	width     int
+	height    int
 }
 
-func fetchChallenge(id int) tea.Cmd {
+func fetchChallengeCmd(id int) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
 		defer cancel()
@@ -82,7 +84,7 @@ func fetchChallenge(id int) tea.Cmd {
 		}
 
 		log.Default().Printf("Fetched challenge %d", id)
-		return updateChallengeCmd{challenge}
+		return challengeUpdatedMsg{challenge}
 	}
 }
 
@@ -95,11 +97,11 @@ func submitFlagCmd(id int, flag string) tea.Cmd {
 		if err != nil {
 			return createErrMsg(fmt.Errorf("Failed to submit flag for challenge %d: %v", id, err))
 		}
-		return setMessageCmd{result.Message}
+		return messageSetMsg{result.Message}
 	}
 }
 
-func InitChallenge(id int) (challengeModel, tea.Cmd) {
+func InitChallenge(id int, width, height int) (challengeModel, tea.Cmd) {
 	input := textinput.New()
 	input.Prompt = "$ "
 	input.Placeholder = "Flag"
@@ -109,17 +111,19 @@ func InitChallenge(id int) (challengeModel, tea.Cmd) {
 	m := challengeModel{
 		challenge: nil,
 		help:      help.New(),
-		err:       "",
+		err:       nil,
 		message:   "",
 		mode:      view,
 		input:     input,
+		width:     width,
+		height:    height,
 	}
 
 	top, right, bottom, left := constants.DocStyle.GetMargin()
-	m.viewport = viewport.New(constants.WindowSize.Width-left-right, constants.WindowSize.Height-top-bottom-5)
+	m.viewport = viewport.New(width-left-right, height-top-bottom-5)
 	m.viewport.Style = lipgloss.NewStyle().Align(lipgloss.Bottom)
 
-	return m, fetchChallenge(id)
+	return m, fetchChallengeCmd(id)
 }
 
 func formatChallenge(challenge api.Challenge) string {
@@ -180,11 +184,11 @@ func (m *challengeModel) setViewportContent() {
 	} else {
 		content = formatChallenge(*m.challenge)
 	}
-	str, err := glamour.Render(content, "dark")
-	if err != nil {
-		m.err = "could not render content with glamour"
+	if str, err := glamour.Render(content, "dark"); err == nil {
+		m.viewport.SetContent(str)
+	} else {
+		m.err = fmt.Errorf("render failed: %v", err)
 	}
-	m.viewport.SetContent(str)
 }
 
 func (m challengeModel) Init() tea.Cmd { return nil }
@@ -194,15 +198,19 @@ func (m challengeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
-	case updateChallengeCmd:
+	case challengeUpdatedMsg:
 		m.challenge = msg.challenge
 	case tea.WindowSizeMsg:
-		constants.WindowSize = msg
-	case setMessageCmd:
+		m.width = msg.Width
+		m.height = msg.Height
+		top, right, bottom, left := constants.DocStyle.GetMargin()
+		m.viewport.Width = m.width - left - right
+		m.viewport.Height = m.height - top - bottom - 5
+	case messageSetMsg:
 		m.message = msg.message
 	case errMsg:
 		log.Default().Print(msg)
-		m.err = msg.Error()
+		m.err = msg
 	case tea.KeyMsg:
 		if m.input.Focused() {
 			if key.Matches(msg, constants.Keymap.Enter) {
@@ -228,13 +236,12 @@ func (m challengeModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.Focus()
 				cmd = textinput.Blink
 			case key.Matches(msg, constants.Keymap.Reload):
-				return m, fetchChallenge(int(m.challenge.Id))
+				return m, fetchChallengeCmd(int(m.challenge.Id))
 			case key.Matches(msg, constants.Keymap.Quit):
 				return m, tea.Quit
 			case key.Matches(msg, constants.Keymap.Back):
-				challenges, initCmd := InitChallenges()
-				m, updateCmd := challenges.Update(constants.WindowSize)
-				return m, tea.Batch(updateCmd, initCmd)
+				cm, initCmd := InitChallenges(m.width, m.height)
+				return cm, initCmd
 			}
 		}
 	}
@@ -251,7 +258,9 @@ func (m challengeModel) View() string {
 		return "Loading challenge..."
 	}
 
-	alert := lipgloss.JoinHorizontal(lipgloss.Left, constants.ErrStyle(m.err), constants.AlertStyle(m.message))
+	errStr := renderError(m.err)
+
+	alert := lipgloss.JoinHorizontal(lipgloss.Left, errStr, constants.AlertStyle(m.message))
 
 	if m.input.Focused() {
 		formatted := lipgloss.JoinVertical(lipgloss.Top, "\n", m.viewport.View(), m.help.View(ChallengeKeymap), alert, m.input.View())

@@ -34,7 +34,7 @@ var ScoreboardKeymap = scoreboardKeymap{
 	Quit:   constants.Keymap.Quit,
 }
 
-type updateScoreboardCmd struct {
+type scoreboardUpdatedMsg struct {
 	scoreboard []api.ScoreboardEntry
 }
 
@@ -42,10 +42,12 @@ type scoreboardModel struct {
 	scoreboard  table.Model
 	help        help.Model
 	screensHelp help.Model
-	err         string
+	err         error
+	width       int
+	height      int
 }
 
-func fetchScoreboard() tea.Cmd {
+func fetchScoreboardCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
 		defer cancel()
@@ -55,13 +57,13 @@ func fetchScoreboard() tea.Cmd {
 			return createErrMsg(fmt.Errorf("Failed to fetch scoreboard: %v", err))
 		}
 		log.Default().Println("Fetched scoreboard")
-		return updateScoreboardCmd{scoreboard}
+		return scoreboardUpdatedMsg{scoreboard}
 	}
 }
 
-func setScoreboardTableSize(t *table.Model) {
-	if constants.WindowSize.Height != 0 {
-		nameLength := constants.WindowSize.Width - 35
+func setScoreboardTableSize(t *table.Model, width, height int) {
+	if height != 0 {
+		nameLength := width - 35
 
 		columns := []table.Column{
 			{Title: "Position", Width: 8},
@@ -73,8 +75,8 @@ func setScoreboardTableSize(t *table.Model) {
 		t.SetColumns(columns)
 
 		top, right, bottom, left := constants.DocStyle.GetMargin()
-		t.SetHeight(constants.WindowSize.Height - top - bottom - 5)
-		t.SetWidth(constants.WindowSize.Width - left - right + 1)
+		t.SetHeight(height - top - bottom - 5)
+		t.SetWidth(width - left - right + 1)
 	}
 }
 
@@ -88,30 +90,25 @@ func createScoreboardRows(scoreboard []api.ScoreboardEntry) []table.Row {
 	return rows
 }
 
-func InitScoreboard() (scoreboardModel, tea.Cmd) {
+func InitScoreboard(width, height int) (scoreboardModel, tea.Cmd) {
 	t := table.New(
 		table.WithFocused(true),
 	)
 
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
+	s := constants.TableStyle
+	s.Header = constants.TableHeaderStyle
+	s.Selected = constants.SelectedRowStyle
 	t.SetStyles(s)
-	setScoreboardTableSize(&t)
+	setScoreboardTableSize(&t, width, height)
 
 	return scoreboardModel{
 		scoreboard:  t,
 		help:        help.New(),
 		screensHelp: help.New(),
-		err:         "",
-	}, fetchScoreboard()
+		err:         nil,
+		width:       width,
+		height:      height,
+	}, fetchScoreboardCmd()
 }
 
 func (m scoreboardModel) Init() tea.Cmd { return nil }
@@ -119,29 +116,27 @@ func (m scoreboardModel) Init() tea.Cmd { return nil }
 func (m scoreboardModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	log.Default().Printf("Scoreboard view received message: %v, %T\n", msg, msg)
 	switch msg := msg.(type) {
-	case updateScoreboardCmd:
-		var cmd tea.Cmd
+	case scoreboardUpdatedMsg:
 		m.scoreboard.SetRows(createScoreboardRows(msg.scoreboard))
-		m.scoreboard, cmd = m.scoreboard.Update(msg)
-		return m, cmd
+		return m, nil
 	case tea.WindowSizeMsg:
-		constants.WindowSize = msg
-		setScoreboardTableSize(&m.scoreboard)
+		m.width = msg.Width
+		m.height = msg.Height
+		setScoreboardTableSize(&m.scoreboard, m.width, m.height)
 		return m, nil
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, constants.Keymap.Reload):
-			return m, fetchScoreboard()
+			return m, fetchScoreboardCmd()
 		case key.Matches(msg, constants.Keymap.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, constants.ScreensKeymap.Challenges):
-			view, initCmd := InitChallenges()
-			m, updateCmd := view.Update(constants.WindowSize)
-			return m, tea.Batch(updateCmd, initCmd)
+			cm, initCmd := InitChallenges(m.width, m.height)
+			return cm, initCmd
 		}
 	case errMsg:
 		log.Default().Print(msg)
-		m.err = msg.Error()
+		m.err = msg
 	}
 
 	var cmd tea.Cmd
@@ -154,8 +149,8 @@ func (m scoreboardModel) View() string {
 	screensHelpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.screensHelp.View(constants.ScreensKeymap)))
 	helpText := lipgloss.JoinHorizontal(lipgloss.Top, constants.HelpStyle(m.scoreboard.HelpView()), constants.HelpStyle(" • "), constants.HelpStyle(m.help.View(ScoreboardKeymap)))
 
-	if m.err != "" {
-		return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText, constants.ErrStyle(m.err))
+	if m.err != nil {
+		return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText, constants.ErrStyle(m.err.Error()))
 	}
 	return lipgloss.JoinVertical(lipgloss.Top, constants.BaseStyle.Render(m.scoreboard.View()), screensHelpText, helpText)
 }

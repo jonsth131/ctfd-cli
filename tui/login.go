@@ -9,23 +9,16 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/jonsth131/ctfd-cli/tui/constants"
 )
 
 var (
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	blurredStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	cursorStyle  = focusedStyle
-	noStyle      = lipgloss.NewStyle()
-
-	focusedButton = focusedStyle.Render("[ Submit ]")
-	blurredButton = fmt.Sprintf("[ %s ]", blurredStyle.Render("Submit"))
+	focusedButton = constants.FocusedStyle.Render("[ Submit ]")
+	blurredButton = fmt.Sprintf("[ %s ]", constants.BlurredStyle.Render("Submit"))
 )
 
 type (
 	loginMsg struct{}
-	errMsg   struct{ error }
 )
 
 type loginModel struct {
@@ -33,7 +26,9 @@ type loginModel struct {
 	inputs     []textinput.Model
 	spinner    spinner.Model
 	loading    bool
-	errorMsg   string
+	err        error
+	width      int
+	height     int
 }
 
 func InitLogin() (tea.Model, tea.Cmd) {
@@ -45,15 +40,15 @@ func InitLogin() (tea.Model, tea.Cmd) {
 	var t textinput.Model
 	for i := range m.inputs {
 		t = textinput.New()
-		t.Cursor.Style = cursorStyle
+		t.Cursor.Style = constants.CursorStyle
 		t.CharLimit = 255
 
 		switch i {
 		case 0:
 			t.Placeholder = "Username"
 			t.Focus()
-			t.PromptStyle = focusedStyle
-			t.TextStyle = focusedStyle
+			t.PromptStyle = constants.FocusedStyle
+			t.TextStyle = constants.FocusedStyle
 		case 1:
 			t.Placeholder = "Password"
 			t.EchoMode = textinput.EchoPassword
@@ -64,13 +59,13 @@ func InitLogin() (tea.Model, tea.Cmd) {
 	}
 
 	m.spinner = spinner.New()
-	m.spinner.Style = focusedStyle
+	m.spinner.Style = constants.SpinnerStyle
 	m.spinner.Spinner = spinner.Dot
 
 	return m, nil
 }
 
-func login(username, password string) tea.Cmd {
+func loginCmd(username, password string) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
 		defer cancel()
@@ -93,17 +88,16 @@ func (m loginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	inputCmds := make([]tea.Cmd, len(m.inputs))
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		constants.WindowSize = msg
+		m.width = msg.Width
+		m.height = msg.Height
 		return m, nil
 	case errMsg:
 		log.Default().Print(msg)
-		m.errorMsg = msg.Error()
+		m.err = msg
 		m.loading = false
 		return m, tea.Batch(cmds...)
 	case loginMsg:
-		challenges, initCmd := InitChallenges()
-		m, updateCmd := challenges.Update(constants.WindowSize)
-		return m, tea.Batch(updateCmd, initCmd)
+		return InitChallenges(m.width, m.height)
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -118,8 +112,8 @@ func (m loginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if s == "enter" && m.focusIndex == len(m.inputs) {
 				m.loading = true
-				m.errorMsg = ""
-				cmds = append(cmds, login(m.inputs[0].Value(), m.inputs[1].Value()))
+				m.err = nil
+				cmds = append(cmds, loginCmd(m.inputs[0].Value(), m.inputs[1].Value()))
 			}
 
 			if s == "up" || s == "shift+tab" {
@@ -137,13 +131,13 @@ func (m loginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i := 0; i <= len(m.inputs)-1; i++ {
 				if i == m.focusIndex {
 					inputCmds[i] = m.inputs[i].Focus()
-					m.inputs[i].PromptStyle = focusedStyle
-					m.inputs[i].TextStyle = focusedStyle
+					m.inputs[i].PromptStyle = constants.FocusedStyle
+					m.inputs[i].TextStyle = constants.FocusedStyle
 					continue
 				}
 				m.inputs[i].Blur()
-				m.inputs[i].PromptStyle = noStyle
-				m.inputs[i].TextStyle = noStyle
+				m.inputs[i].PromptStyle = constants.NoStyle
+				m.inputs[i].TextStyle = constants.NoStyle
 			}
 		}
 	}
@@ -165,6 +159,10 @@ func (m *loginModel) updateInputs(msg tea.Msg) tea.Cmd {
 }
 
 func (m loginModel) View() string {
+	if len(m.inputs) == 0 {
+		return "initializing..."
+	}
+
 	if m.loading {
 		return fmt.Sprintf("\n %s%s", m.spinner.View(), "Logging in...")
 	}
@@ -182,7 +180,10 @@ func (m loginModel) View() string {
 	if m.focusIndex == len(m.inputs) {
 		button = &focusedButton
 	}
-	fmt.Fprintf(&b, "\n\n%s\n\n%s", *button, constants.ErrStyle(m.errorMsg))
+
+	errStr := renderError(m.err)
+
+	fmt.Fprintf(&b, "\n\n%s\n\n%s", *button, errStr)
 
 	return b.String()
 }
