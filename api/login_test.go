@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
@@ -33,7 +34,7 @@ func TestLogin_Success(t *testing.T) {
 		baseUrl: base,
 	}
 
-	err := api.Login("user", "pass")
+	err := api.Login(context.Background(), "user", "pass")
 	if err != nil {
 		t.Fatalf("expected no error, but got %v", err)
 	}
@@ -64,7 +65,7 @@ func TestLogin_InvalidCredentials(t *testing.T) {
 		baseUrl: base,
 	}
 
-	err := api.Login("user", "wrongpass")
+	err := api.Login(context.Background(), "user", "wrongpass")
 	if err == nil {
 		t.Fatalf("expected error for invalid credentials, got nil")
 	}
@@ -90,7 +91,7 @@ func TestLogin_CAPTCHA(t *testing.T) {
 		baseUrl: base,
 	}
 
-	err := api.Login("user", "pass")
+	err := api.Login(context.Background(), "user", "pass")
 	if err == nil {
 		t.Fatalf("expected error, but got nil")
 	}

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func (c *ApiClient) Login(name string, password string) error {
+func (c *ApiClient) Login(ctx context.Context, name string, password string) error {
 	if strings.TrimSpace(name) == "" {
 		return ErrInvalidUsername
 	}
@@ -18,7 +18,7 @@ func (c *ApiClient) Login(name string, password string) error {
 		return ErrInvalidPassword
 	}
 
-	bodyString, err := c.getLoginPageBody()
+	bodyString, err := c.getLoginPageBody(ctx)
 	if err != nil {
 		return fmt.Errorf("%s: %w", errFailedToGetLoginPage, err)
 	}
@@ -37,7 +37,7 @@ func (c *ApiClient) Login(name string, password string) error {
 		return fmt.Errorf("%s: %w", errFailedToExtractNonce, err)
 	}
 
-	err = c.performLogin(name, password, nonce)
+	err = c.performLogin(ctx, name, password, nonce)
 	if err != nil {
 		return fmt.Errorf("%s: %w", errFailedToLogin, err)
 	}
@@ -45,10 +45,10 @@ func (c *ApiClient) Login(name string, password string) error {
 	return nil
 }
 
-func (c *ApiClient) getLoginPageBody() (string, error) {
+func (c *ApiClient) getLoginPageBody(ctx context.Context) (string, error) {
 	u := fmt.Sprintf("%s%s", c.baseUrl, loginURL)
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 
 	if err != nil {
 		return "", err
@@ -83,14 +83,14 @@ func checkCAPTCHA(body string) (bool, error) {
 	return false, nil
 }
 
-func (c *ApiClient) performLogin(username string, password string, nonce string) error {
+func (c *ApiClient) performLogin(ctx context.Context, username string, password string, nonce string) error {
 	body := url.Values{
 		"name":     {username},
 		"password": {password},
 		"nonce":    {nonce},
 	}
 
-	resp, err := c.postForm(fmt.Sprintf("%s%s", c.baseUrl, loginURL), body)
+	resp, err := c.postForm(ctx, fmt.Sprintf("%s%s", c.baseUrl, loginURL), body)
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {

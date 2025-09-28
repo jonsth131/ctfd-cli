@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -46,10 +47,12 @@ type scoreboardModel struct {
 
 func fetchScoreboard() tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
+		defer cancel()
 		log.Default().Println("Fetching scoreboard...")
-		scoreboard, err := constants.C.GetScoreboard()
+		scoreboard, err := constants.C.GetScoreboard(ctx)
 		if err != nil {
-			return errMsg{fmt.Errorf("Failed to fetch scoreboard: %v", err)}
+			return createErrMsg(fmt.Errorf("Failed to fetch scoreboard: %v", err))
 		}
 		log.Default().Println("Fetched scoreboard")
 		return updateScoreboardCmd{scoreboard}

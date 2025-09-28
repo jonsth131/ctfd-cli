@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -33,7 +34,7 @@ func TestGetChallenges_Success(t *testing.T) {
 		baseUrl: base,
 	}
 
-	challs, err := api.GetChallenges()
+	challs, err := api.GetChallenges(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -56,7 +57,7 @@ func TestGetChallenges_Failure(t *testing.T) {
 		baseUrl: base,
 	}
 
-	_, err := api.GetChallenges()
+	_, err := api.GetChallenges(context.Background())
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -94,7 +95,7 @@ func TestGetChallenge_Success(t *testing.T) {
 		baseUrl: base,
 	}
 
-	chall, err := api.GetChallenge(42)
+	chall, err := api.GetChallenge(context.Background(), 42)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -120,7 +121,7 @@ func TestGetChallenge_Failure(t *testing.T) {
 		baseUrl: base,
 	}
 
-	_, err := api.GetChallenge(99)
+	_, err := api.GetChallenge(context.Background(), 99)
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
@@ -157,7 +158,7 @@ func TestSubmitFlag_Success(t *testing.T) {
 		baseUrl: base,
 	}
 
-	result, err := api.SubmitFlag(123, "flag{test}")
+	result, err := api.SubmitFlag(context.Background(), 123, "flag{test}")
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -189,7 +190,7 @@ func TestSubmitFlag_Failure(t *testing.T) {
 		baseUrl: base,
 	}
 
-	_, err := api.SubmitFlag(321, "flag{bad}")
+	_, err := api.SubmitFlag(context.Background(), 321, "flag{bad}")
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

@@ -2,15 +2,16 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 )
 
-func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
+func (c *ApiClient) GetChallenges(ctx context.Context) ([]ListChallenge, error) {
 	u := fmt.Sprintf("%s%s", c.baseUrl, challengesApiURL)
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 	if err != nil {
 		return nil, err
 	}
@@ -28,10 +29,10 @@ func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
 	return challenges.Data, nil
 }
 
-func (c *ApiClient) GetChallenge(id uint16) (*Challenge, error) {
+func (c *ApiClient) GetChallenge(ctx context.Context, id uint16) (*Challenge, error) {
 	u := fmt.Sprintf("%s%s/%d", c.baseUrl, challengesApiURL, id)
 
-	resp, err := c.get(u)
+	resp, err := c.get(ctx, u)
 
 	if err != nil {
 		return nil, err
@@ -50,8 +51,8 @@ func (c *ApiClient) GetChallenge(id uint16) (*Challenge, error) {
 	return &challenge.Data, nil
 }
 
-func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
-	resp, err := c.get(fmt.Sprintf("%s%s", c.baseUrl, challengesURL))
+func (c *ApiClient) SubmitFlag(ctx context.Context, id int, attempt string) (*AttemptResult, error) {
+	resp, err := c.get(ctx, fmt.Sprintf("%s%s", c.baseUrl, challengesURL))
 
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
 		return nil, err
 	}
 
-	req, err := http.NewRequest("POST", u, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", u, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}

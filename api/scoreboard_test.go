@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"testing"
@@ -39,7 +40,7 @@ func TestGetScoreboard_Success(t *testing.T) {
 	base, _ := url.Parse("https://ctf.example.com")
 	api := &ApiClient{client: mock, baseUrl: base}
 
-	scoreboard, err := api.GetScoreboard()
+	scoreboard, err := api.GetScoreboard(context.Background())
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -68,7 +69,7 @@ func TestGetScoreboard_Failure(t *testing.T) {
 	base, _ := url.Parse("https://ctf.example.com")
 	api := &ApiClient{client: mock, baseUrl: base}
 
-	_, err := api.GetScoreboard()
+	_, err := api.GetScoreboard(context.Background())
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}

@@ -1,11 +1,13 @@
 package api
 
+import "context"
+
 type CTFdAPI interface {
-	Login(user, password string) error
-	GetChallenges() ([]ListChallenge, error)
-	GetChallenge(id uint16) (*Challenge, error)
-	SubmitFlag(id int, flag string) (*AttemptResult, error)
-	GetScoreboard() ([]ScoreboardEntry, error)
+	Login(ctx context.Context, user, password string) error
+	GetChallenges(ctx context.Context) ([]ListChallenge, error)
+	GetChallenge(ctx context.Context, id uint16) (*Challenge, error)
+	SubmitFlag(ctx context.Context, id int, flag string) (*AttemptResult, error)
+	GetScoreboard(ctx context.Context) ([]ScoreboardEntry, error)
 }
 
 type ApiResponse[T any] struct {

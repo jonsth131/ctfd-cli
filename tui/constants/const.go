@@ -1,6 +1,8 @@
 package constants
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -11,6 +13,10 @@ var (
 	P          *tea.Program
 	C          api.CTFdAPI
 	WindowSize tea.WindowSizeMsg
+)
+
+const (
+	Timeout = 5 * time.Second
 )
 
 var DocStyle = lipgloss.NewStyle().Margin(0, 2)

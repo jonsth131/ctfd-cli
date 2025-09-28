@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -71,10 +72,12 @@ func InitLogin() (tea.Model, tea.Cmd) {
 
 func login(username, password string) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
+		defer cancel()
 		log.Default().Print("Logging in...")
-		err := constants.C.Login(username, password)
+		err := constants.C.Login(ctx, username, password)
 		if err != nil {
-			return errMsg{fmt.Errorf("Failed to login: %v", err)}
+			return createErrMsg(fmt.Errorf("Failed to login: %v", err))
 		}
 		log.Default().Print("Logged in successfully")
 		return loginMsg{}

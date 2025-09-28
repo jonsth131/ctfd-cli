@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -33,16 +34,16 @@ func NewApiClient(u string) (*ApiClient, error) {
 	return &ApiClient{client: httpClient, baseUrl: ur}, nil
 }
 
-func (c *ApiClient) get(fullURL string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", fullURL, nil)
+func (c *ApiClient) get(ctx context.Context, fullURL string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
 		return nil, err
 	}
 	return c.client.Do(req)
 }
 
-func (c *ApiClient) post(fullURL, bodyType string, body io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest("POST", fullURL, body)
+func (c *ApiClient) post(ctx context.Context, fullURL, bodyType string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", fullURL, body)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +51,6 @@ func (c *ApiClient) post(fullURL, bodyType string, body io.Reader) (*http.Respon
 	return c.client.Do(req)
 }
 
-func (c *ApiClient) postForm(fullURL string, data url.Values) (*http.Response, error) {
-	return c.post(fullURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+func (c *ApiClient) postForm(ctx context.Context, fullURL string, data url.Values) (*http.Response, error) {
+	return c.post(ctx, fullURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
 }

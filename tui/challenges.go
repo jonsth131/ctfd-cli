@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strconv"
@@ -50,10 +51,12 @@ type challengesModel struct {
 
 func fetchChallenges() tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
+		defer cancel()
 		log.Default().Print("Fetching challenges...")
-		challenges, err := constants.C.GetChallenges()
+		challenges, err := constants.C.GetChallenges(ctx)
 		if err != nil {
-			return errMsg{fmt.Errorf("Failed to fetch challenges: %v", err)}
+			return createErrMsg(fmt.Errorf("Failed to fetch challenges: %v", err))
 		}
 		log.Default().Print("Fetched challenges")
 		return updateChallengesCmd{challenges}

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path"
@@ -72,11 +73,14 @@ type challengeModel struct {
 
 func fetchChallenge(id int) tea.Cmd {
 	return func() tea.Msg {
+		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
+		defer cancel()
 		log.Default().Printf("Fetching challenge %d...", id)
-		challenge, err := constants.C.GetChallenge(uint16(id))
+		challenge, err := constants.C.GetChallenge(ctx, uint16(id))
 		if err != nil {
-			return errMsg{fmt.Errorf("Failed to fetch challenge %d: %v", id, err)}
+			return createErrMsg(fmt.Errorf("Failed to fetch challenge %d: %v", id, err))
 		}
+
 		log.Default().Printf("Fetched challenge %d", id)
 		return updateChallengeCmd{challenge}
 	}
@@ -84,10 +88,12 @@ func fetchChallenge(id int) tea.Cmd {
 
 func submitFlagCmd(id int, flag string) tea.Cmd {
 	return func() tea.Msg {
-		log.Default().Printf("Submitting flag: %s for challeng: %d", flag, id)
-		result, err := constants.C.SubmitFlag(id, flag)
+		ctx, cancel := context.WithTimeout(context.Background(), constants.Timeout)
+		defer cancel()
+		log.Default().Printf("Submitting flag: %s for challenge: %d", flag, id)
+		result, err := constants.C.SubmitFlag(ctx, id, flag)
 		if err != nil {
-			return errMsg{fmt.Errorf("Failed to submit flag for challenge %d: %v", id, err)}
+			return createErrMsg(fmt.Errorf("Failed to submit flag for challenge %d: %v", id, err))
 		}
 		return setMessageCmd{result.Message}
 	}
