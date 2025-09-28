@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"strings"
@@ -59,8 +60,8 @@ func TestGetChallenges_Failure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if err.Error() != errFailedFetchingChallenges {
-		t.Errorf("expected error %q, got %q", errFailedFetchingChallenges, err.Error())
+	if !errors.Is(err, ErrFailedFetchingChals) {
+		t.Errorf("expected error %q, got %q", ErrFailedFetchingChals, err.Error())
 	}
 }
 

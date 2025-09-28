@@ -12,10 +12,10 @@ import (
 
 func (c *ApiClient) Login(name string, password string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf(errInvalidUsername)
+		return ErrInvalidUsername
 	}
 	if strings.TrimSpace(password) == "" {
-		return fmt.Errorf(errInvalidPassword)
+		return ErrInvalidPassword
 	}
 
 	bodyString, err := c.getLoginPageBody()
@@ -29,7 +29,7 @@ func (c *ApiClient) Login(name string, password string) error {
 	}
 
 	if res {
-		return fmt.Errorf(errCAPTCHARequired)
+		return ErrCaptchaRequired
 	}
 
 	nonce, err := extractNonce(bodyString)
@@ -115,7 +115,7 @@ func (c *ApiClient) performLogin(username string, password string, nonce string)
 	bodyString := string(bodyBytes)
 
 	if strings.Contains(bodyString, ctfdInvalidCredentials) {
-		return fmt.Errorf(errInvalidCredentials)
+		return ErrInvalidCredentials
 	}
 
 	return nil

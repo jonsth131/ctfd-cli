@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"testing"
@@ -67,9 +68,8 @@ func TestLogin_InvalidCredentials(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error for invalid credentials, got nil")
 	}
-	if err.Error() != errFailedToLogin+": "+errInvalidCredentials {
-		t.Errorf("expected error containing %q, got %q",
-			errInvalidCredentials, err.Error())
+	if !errors.Is(err, ErrInvalidCredentials) {
+		t.Errorf("expected error to be ErrInvalidCredentials, got %v", err)
 	}
 }
 
@@ -94,8 +94,7 @@ func TestLogin_CAPTCHA(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, but got nil")
 	}
-	if err.Error() != errCAPTCHARequired {
-		t.Errorf("expected error containing %q, got %q",
-			errCAPTCHARequired, err.Error())
+	if !errors.Is(err, ErrCaptchaRequired) {
+		t.Errorf("expected error to be ErrCaptchaRequired, got %v", err)
 	}
 }

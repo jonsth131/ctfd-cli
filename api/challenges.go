@@ -22,7 +22,7 @@ func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
 	}
 
 	if challenges.Success != true {
-		return nil, fmt.Errorf(errFailedFetchingChallenges)
+		return nil, ErrFailedFetchingChals
 	}
 
 	return challenges.Data, nil

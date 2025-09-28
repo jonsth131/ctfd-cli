@@ -21,7 +21,7 @@ func (c *ApiClient) GetScoreboard() ([]ScoreboardEntry, error) {
 	}
 
 	if scoreboard.Success != true {
-		return nil, fmt.Errorf(errFailedFetchingScoreboard)
+		return nil, ErrFailedFetchingBoard
 	}
 
 	return scoreboard.Data, nil

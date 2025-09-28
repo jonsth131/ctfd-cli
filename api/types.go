@@ -1,5 +1,13 @@
 package api
 
+type CTFdAPI interface {
+	Login(user, password string) error
+	GetChallenges() ([]ListChallenge, error)
+	GetChallenge(id uint16) (*Challenge, error)
+	SubmitFlag(id int, flag string) (*AttemptResult, error)
+	GetScoreboard() ([]ScoreboardEntry, error)
+}
+
 type ApiResponse[T any] struct {
 	Success bool `json:"success"`
 	Data    T    `json:"data"`

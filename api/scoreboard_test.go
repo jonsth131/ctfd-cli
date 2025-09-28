@@ -1,8 +1,8 @@
 package api
 
 import (
+	"errors"
 	"net/url"
-	"strings"
 	"testing"
 )
 
@@ -72,7 +72,7 @@ func TestGetScoreboard_Failure(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !strings.Contains(err.Error(), errFailedFetchingScoreboard) {
-		t.Errorf("expected error to contain %q, got %q", errFailedFetchingScoreboard, err.Error())
+	if !errors.Is(err, ErrFailedFetchingBoard) {
+		t.Errorf("expected error to be ErrFailedFetchingBoard, got %v", err)
 	}
 }
