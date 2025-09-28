@@ -7,11 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"regexp"
 	"strings"
 )
 
@@ -86,7 +84,7 @@ type ApiClient struct {
 }
 
 func NewApiClient(u string) (*ApiClient, error) {
-	ur, err := getBaseUrl(u)
+	ur, err := parseBaseUrl(u)
 
 	if err != nil {
 		return nil, err
@@ -111,96 +109,123 @@ func (api *ApiClient) SetCookie(cookie *http.Cookie) {
 	api.client.Jar.SetCookies(api.baseUrl, []*http.Cookie{cookie})
 }
 
-func getBaseUrl(u string) (*url.URL, error) {
-	ur, err := url.Parse(u)
-	if err != nil {
-		return nil, err
+func (c *ApiClient) Login(name string, password string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf(errInvalidUsername)
+	}
+	if strings.TrimSpace(password) == "" {
+		return fmt.Errorf(errInvalidPassword)
 	}
 
-	u = fmt.Sprintf("%s://%s", ur.Scheme, ur.Host)
-
-	ur, err = url.Parse(u)
+	bodyString, err := c.getLoginPageBody()
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("%s: %w", errFailedToGetLoginPage, err)
 	}
 
-	return ur, nil
+	res, err := checkCAPTCHA(bodyString)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errFailedToCheckCAPTCHA, err)
+	}
+
+	if res {
+		return fmt.Errorf(errCAPTCHARequired)
+	}
+
+	nonce, err := extractNonce(bodyString)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errFailedToExtractNonce, err)
+	}
+
+	err = c.performLogin(name, password, nonce)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errFailedToLogin, err)
+	}
+
+	return nil
 }
 
-func (c *ApiClient) Login(name string, password string) (bool, error) {
-	resp, err := c.client.Get(fmt.Sprintf("%s/login", c.baseUrl))
+func (c *ApiClient) getLoginPageBody() (string, error) {
+	u := fmt.Sprintf("%s%s", c.baseUrl, loginURL)
+
+	resp, err := c.client.Get(u)
 
 	if err != nil {
-		if errors.Is(err, context.Canceled) {
-			return false, fmt.Errorf("login canceled")
-		}
-		if errors.Is(err, context.DeadlineExceeded) {
-			return false, fmt.Errorf("login timed out")
-		}
-		return false, fmt.Errorf("Failed to get login page: %v", err)
+		return "", err
 	}
 
 	defer resp.Body.Close()
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("Failed to read response body: %v", err)
+		return "", fmt.Errorf("%s: %v", errFailedToReadResponseBody, err)
 	}
+
 	bodyString := string(bodyBytes)
 
-	title, err := extractTitle(bodyString)
+	if bodyString == "" {
+		return "", fmt.Errorf(errEmptyResponseBody)
+	}
+
+	return bodyString, nil
+}
+
+func checkCAPTCHA(body string) (bool, error) {
+	title, err := extractTitle(body)
 	if err != nil {
-		return false, fmt.Errorf("could not extract title from login page: %w", err)
+		return false, fmt.Errorf("%s: %w", errFailedToExtractTitle, err)
 	}
 
-	if strings.Contains(title, "Just a moment...") {
-		return false, fmt.Errorf("CAPTCHA required. Try to login in the browser")
+	if strings.Contains(title, cloudflareCAPTCHATitle) {
+		return true, nil
 	}
 
-	nonce, err := extractNonce(bodyString)
-	if err != nil {
-		return false, fmt.Errorf("could not extract nonce from login page: %w", err)
-	}
+	return false, nil
+}
 
+func (c *ApiClient) performLogin(username string, password string, nonce string) error {
 	body := url.Values{
-		"name":     {name},
+		"username": {username},
 		"password": {password},
 		"nonce":    {nonce},
 	}
 
-	resp, err = c.client.PostForm(fmt.Sprintf("%s/login", c.baseUrl), body)
+	resp, err := c.client.PostForm(fmt.Sprintf("%s%s", c.baseUrl, loginURL), body)
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			return false, fmt.Errorf("login canceled")
+			return fmt.Errorf(errLoginCancelled)
 		}
 		if errors.Is(err, context.DeadlineExceeded) {
-			return false, fmt.Errorf("login timed out")
+			return fmt.Errorf(errLoginTimeout)
 		}
-		return false, fmt.Errorf("Failed to login: %v", err)
+		return fmt.Errorf("%s: %v", errFailedToLogin, err)
 	}
 
 	defer resp.Body.Close()
 
-	bodyBytes, err = io.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, fmt.Errorf("Failed to read response body: %v", err)
+		return fmt.Errorf("%s: %v", errFailedToReadResponseBody, err)
 	}
-	bodyString = string(bodyBytes)
+	bodyString := string(bodyBytes)
 
-	if strings.Contains(bodyString, "Your username or password is incorrect") {
-		return false, fmt.Errorf("Invalid credentials")
+	if strings.Contains(bodyString, ctfdInvalidCredentials) {
+		return fmt.Errorf(errInvalidCredentials)
 	}
 
-	sessionCookie := resp.Request.CookiesNamed("session")[0]
+	cookies := resp.Request.CookiesNamed(sessionCookieName)
+	if len(cookies) == 0 {
+		return fmt.Errorf(errNoSessionCookie)
+	}
 
+	sessionCookie := cookies[0]
 	c.SetCookie(sessionCookie)
 
-	return true, nil
+	return nil
 }
 
 func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
-	u := fmt.Sprintf("%s/api/v1/challenges", c.baseUrl)
+	u := fmt.Sprintf("%s%s", c.baseUrl, challengesApiURL)
 
 	resp, err := c.client.Get(u)
 
@@ -215,14 +240,14 @@ func (c *ApiClient) GetChallenges() ([]ListChallenge, error) {
 	}
 
 	if challenges.Success != true {
-		return nil, fmt.Errorf("Error fetching challenges")
+		return nil, fmt.Errorf(errFailedFetchingChallenges)
 	}
 
 	return challenges.Data, nil
 }
 
 func (c *ApiClient) GetChallenge(id uint16) (*Challenge, error) {
-	u := fmt.Sprintf("%s/api/v1/challenges/%d", c.baseUrl, id)
+	u := fmt.Sprintf("%s%s/%d", c.baseUrl, challengesApiURL, id)
 
 	resp, err := c.client.Get(u)
 
@@ -237,14 +262,14 @@ func (c *ApiClient) GetChallenge(id uint16) (*Challenge, error) {
 	}
 
 	if challenge.Success != true {
-		return nil, fmt.Errorf("Error fetching challenge %d", id)
+		return nil, fmt.Errorf("%s: %d", errFailedFetchingChallenge, id)
 	}
 
 	return &challenge.Data, nil
 }
 
 func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
-	resp, err := c.client.Get(fmt.Sprintf("%s/challenges", c.baseUrl))
+	resp, err := c.client.Get(fmt.Sprintf("%s%s", c.baseUrl, challengesURL))
 
 	if err != nil {
 		return nil, err
@@ -252,15 +277,16 @@ func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("%s: %w", errFailedToReadResponseBody, err)
 	}
 	bodyString := string(bodyBytes)
 
-	regex := regexp.MustCompile(`'csrfNonce': "([a-f0-9]*)",`)
+	nonce, err := extractCSRFToken(bodyString)
+	if err != nil {
+		return nil, err
+	}
 
-	nonce := regex.FindStringSubmatch(bodyString)[1]
-
-	u := fmt.Sprintf("%s/api/v1/challenges/attempt", c.baseUrl)
+	u := fmt.Sprintf("%s%s", c.baseUrl, flagAttemptApiURL)
 
 	request := AttemptRequest{
 		ChallengeId: id,
@@ -278,7 +304,7 @@ func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Csrf-Token", nonce)
+	req.Header.Set(csrfTokenHeaderName, nonce)
 
 	resp, err = c.client.Do(req)
 	if err != nil {
@@ -291,14 +317,14 @@ func (c *ApiClient) SubmitFlag(id int, attempt string) (*AttemptResult, error) {
 	}
 
 	if response.Success != true {
-		return nil, fmt.Errorf("Error submitting flag for challenge %d", id)
+		return nil, fmt.Errorf("%s: %d", errFailedSubmittingFlag, id)
 	}
 
 	return &response.Data, nil
 }
 
 func (c *ApiClient) GetScoreboard() ([]ScoreboardEntry, error) {
-	u := fmt.Sprintf("%s/api/v1/scoreboard", c.baseUrl)
+	u := fmt.Sprintf("%s%s", c.baseUrl, scoreboardApiURL)
 
 	resp, err := c.client.Get(u)
 
@@ -313,7 +339,7 @@ func (c *ApiClient) GetScoreboard() ([]ScoreboardEntry, error) {
 	}
 
 	if scoreboard.Success != true {
-		return nil, fmt.Errorf("Error fetching scoreboard")
+		return nil, fmt.Errorf(errFailedFetchingScoreboard)
 	}
 
 	return scoreboard.Data, nil

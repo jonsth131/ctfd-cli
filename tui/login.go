@@ -72,12 +72,9 @@ func InitLogin() (tea.Model, tea.Cmd) {
 func login(username, password string) tea.Cmd {
 	return func() tea.Msg {
 		log.Default().Print("Logging in...")
-		res, err := constants.C.Login(username, password)
+		err := constants.C.Login(username, password)
 		if err != nil {
 			return errMsg{fmt.Errorf("Failed to login: %v", err)}
-		}
-		if !res {
-			return errMsg{fmt.Errorf("Failed to login")}
 		}
 		log.Default().Print("Logged in successfully")
 		return loginMsg{}

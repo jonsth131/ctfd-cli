@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -72,4 +73,17 @@ func extractTitle(htmlBody string) (string, error) {
 		return "", fmt.Errorf("title not found")
 	}
 	return title, nil
+}
+
+func extractCSRFToken(htmlBody string) (string, error) {
+	regex := regexp.MustCompile(`'csrfNonce': "([a-f0-9]*)",`)
+	match := regex.FindStringSubmatch(htmlBody)
+
+	if len(match) != 2 {
+		return "", fmt.Errorf("csrf token not found")
+	}
+
+	nonce := match[1]
+
+	return nonce, nil
 }
