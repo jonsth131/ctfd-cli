@@ -1,0 +1,28 @@
+package api
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+func (c *ApiClient) GetScoreboard() ([]ScoreboardEntry, error) {
+	u := fmt.Sprintf("%s%s", c.baseUrl, scoreboardApiURL)
+
+	resp, err := c.get(u)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+	var scoreboard ApiResponse[[]ScoreboardEntry]
+	if err := json.NewDecoder(resp.Body).Decode(&scoreboard); err != nil {
+		return nil, err
+	}
+
+	if scoreboard.Success != true {
+		return nil, fmt.Errorf(errFailedFetchingScoreboard)
+	}
+
+	return scoreboard.Data, nil
+}
