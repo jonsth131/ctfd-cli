@@ -9,7 +9,7 @@ import (
 
 var (
 	P          *tea.Program
-	C          *api.ApiClient
+	C          api.CTFdAPI
 	WindowSize tea.WindowSizeMsg
 )
 
